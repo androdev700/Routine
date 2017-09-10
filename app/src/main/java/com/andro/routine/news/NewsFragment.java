@@ -25,15 +25,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
 import java.util.ArrayList;
 
 import static android.content.Context.CONNECTIVITY_SERVICE;
@@ -53,7 +44,6 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     private SwipeRefreshLayout swipeLayout;
     private ArrayList<News> newsList;
     private ArrayList<News> cachedNews;
-    private GetNews mNews;
     private SharedPreferences mSharedPreferences;
     private SharedPreferences.Editor mEditor;
 
@@ -66,33 +56,30 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         getActivity().setTitle(R.string.title_news);
+        newsList = new ArrayList<>();
+        cachedNews = new ArrayList<>();
+
         View view = inflater.inflate(R.layout.fragment_news, container, false);
 
         mSharedPreferences = getActivity().getSharedPreferences("NewsObject", MODE_PRIVATE);
-
+        newsRecycler = view.findViewById(R.id.news_recycler);
         swipeLayout = view.findViewById(R.id.swipe_refresh_news);
+
         swipeLayout.setOnRefreshListener(this);
         swipeLayout.setColorSchemeColors(getResources().getColor(android.R.color.holo_green_dark)
                 , getResources().getColor(android.R.color.holo_red_dark)
                 , getResources().getColor(android.R.color.holo_blue_dark)
                 , getResources().getColor(android.R.color.holo_orange_dark));
 
-        newsList = new ArrayList<>();
-        newsRecycler = view.findViewById(R.id.news_recycler);
-
         layoutManager = new LinearLayoutManager(getActivity());
         newsRecycler.setHasFixedSize(true);
         newsRecycler.setLayoutManager(layoutManager);
 
-        mNews = new GetNews();
-        cachedNews = new ArrayList<>();
-
         if (mSharedPreferences.getBoolean("hasData", false)) {
-            Log.d(TAG, "Data Present");
             cachedNews.clear();
             int length = mSharedPreferences.getInt("DataLength", 0);
 
-            for (int i = 0; i < length - 1; i++) {
+            for (int i = 0; i < length; i++) {
                 News news = new News();
                 news.setTitle(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[0], ""));
                 news.setAuthor(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[1], ""));
@@ -116,8 +103,19 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
         } else {
             onRefresh();
-            Log.d(TAG, "Refresh Started");
             swipeLayout.setRefreshing(true);
+            newsAdapter = new NewsAdapter(newsList, new NewsClickListener() {
+                @Override
+                public void onClick(View view, int position) {
+                    CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+                    builder.setShowTitle(true);
+                    builder.setToolbarColor(view.getResources().getColor(R.color.colorPrimary));
+                    CustomTabsIntent customTabsIntent = builder.build();
+                    customTabsIntent.launchUrl(view.getContext(),
+                            Uri.parse(newsList.get(position).getUrl()));
+                }
+            });
+            newsRecycler.setAdapter(newsAdapter);
         }
         return view;
     }
@@ -125,18 +123,14 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     @Override
     public void onStop() {
         super.onStop();
-        mNews.cancel(true);
         swipeLayout.setRefreshing(false);
-        Log.d(TAG, "Stopped");
     }
 
     @Override
     public void onRefresh() {
         if (checkConnection()) {
-            Log.d(TAG, "Connection Established");
-            mNews.execute();
+            new GetNews().execute();
         } else {
-            Log.d(TAG, "Connection Failed");
             Toast.makeText(getContext(), "Check your internet connection", Toast.LENGTH_SHORT).show();
         }
     }
@@ -146,10 +140,8 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         protected Void doInBackground(Void... arg0) {
             HttpHandler handler = new HttpHandler();
-            Log.d(TAG, "Request Made");
             String url = "https://newsapi.org/v1/articles?source=the-verge&sortBy=latest&apiKey=6ee4bea512c54bf386c6d4431b6df408";
             String jsonStr = handler.makeServiceCall(url);
-            Log.d(TAG, "Fetching Made");
             Log.e(TAG, "Response from url: " + jsonStr);
 
             if (jsonStr != null) {
@@ -190,8 +182,6 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
                         }
                     });
                 }
-            } else {
-                Log.e(TAG, "Couldn't get json from server.");
             }
             return null;
         }
@@ -200,20 +190,7 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             swipeLayout.setRefreshing(false);
-            newsList.remove(newsList.size() - 1);
-            newsAdapter = new NewsAdapter(newsList, new NewsClickListener() {
-                @Override
-                public void onClick(View view, int position) {
-                    CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-                    builder.setShowTitle(true);
-                    builder.setToolbarColor(view.getResources().getColor(R.color.colorPrimary));
-                    CustomTabsIntent customTabsIntent = builder.build();
-                    customTabsIntent.launchUrl(view.getContext(),
-                            Uri.parse(newsList.get(position).getUrl()));
-                }
-            });
             newsAdapter.notifyDataSetChanged();
-            newsRecycler.setAdapter(newsAdapter);
         }
     }
 
@@ -231,4 +208,3 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         return false;
     }
 }
-
