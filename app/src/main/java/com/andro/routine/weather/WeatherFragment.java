@@ -1,15 +1,15 @@
 package com.andro.routine.weather;
 
 import android.Manifest;
-import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -28,18 +28,9 @@ import android.widget.Toast;
 
 import com.andro.routine.HttpHandler;
 import com.andro.routine.R;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.common.api.Status;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.LocationSettingsResult;
-import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.tasks.OnSuccessListener;
 
 import org.json.JSONArray;
@@ -52,11 +43,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.ThreadLocalRandom;
 
-import static android.content.Context.CONNECTIVITY_SERVICE;
 import static android.content.Context.MODE_PRIVATE;
-import static com.google.android.gms.internal.zzagz.runOnUiThread;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -105,10 +93,11 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
 
         swipeLayout = view.findViewById(R.id.swipe_refresh_weather);
         swipeLayout.setOnRefreshListener(this);
-        swipeLayout.setColorSchemeColors(getResources().getColor(android.R.color.holo_green_dark)
-                , getResources().getColor(android.R.color.holo_red_dark)
-                , getResources().getColor(android.R.color.holo_blue_dark)
-                , getResources().getColor(android.R.color.holo_orange_dark));
+        swipeLayout.setColorSchemeColors(
+                ContextCompat.getColor(getContext(), android.R.color.holo_green_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_red_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_blue_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_orange_dark));
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(getActivity());
         weather = new Weather();
@@ -134,7 +123,7 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
             pressure.setText(weatherCache.getString(weatherDataValues[5], ""));
             precipProbability.setText(weatherCache.getString(weatherDataValues[6], ""));
             summaryDaily.setText(weatherCache.getString(weatherDataValues[7], ""));
-            weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloud_sun));
+            weatherIcon.setImageDrawable(ContextCompat.getDrawable(getContext(), R.drawable.cloud_sun));
         } else {
             onRefresh();
             swipeLayout.setRefreshing(true);
@@ -225,7 +214,7 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
                     JSONArray dailyData = daily.getJSONArray("data");
 
                     List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-                    String cityName = addresses.get(0).getLocality();
+                    String cityName = addresses.get(0).getAddressLine(0);
                     String stateName = addresses.get(0).getAddressLine(1);
 
                     editor.putBoolean("hasData", true);
@@ -259,31 +248,12 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
                     editor.apply();
                 } catch (final JSONException e) {
                     Log.e(TAG, "Json parsing error: " + e.getMessage());
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getActivity(),
-                                    "Json parsing error: " + e.getMessage(),
-                                    Toast.LENGTH_LONG)
-                                    .show();
-                        }
-                    });
 
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             } else {
                 Log.e(TAG, "Couldn't get json from server.");
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(getActivity(),
-                                "Couldn't get json from server. Check LogCat for possible errors!",
-                                Toast.LENGTH_LONG)
-                                .show();
-                    }
-                });
-
             }
             return null;
         }
@@ -301,9 +271,8 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
             humidity.setText(weather.getHumidity());
             precipProbability.setText(weather.getPrecipProbability());
             summaryDaily.setText(weather.getSummaryDaily());
-            weatherIcon.setImageDrawable(getResources().getDrawable(R.drawable.cloud_sun));
+            weatherIcon.setImageDrawable(ContextCompat.getDrawable(getContext(), R.drawable.cloud_sun));
         }
-
     }
 
     @Override
@@ -319,17 +288,11 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
     }
 
     public boolean checkConnection() {
-        ConnectivityManager connect = (ConnectivityManager) getActivity().getSystemService(CONNECTIVITY_SERVICE);
-        if (connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.CONNECTED ||
-                connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.CONNECTING ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.CONNECTING ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.CONNECTED) {
-            return true;
-        } else if (connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.DISCONNECTED ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.DISCONNECTED) {
-            return false;
-        }
-        return false;
+        ConnectivityManager cm = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && (
+                activeNetwork.getType() == ConnectivityManager.TYPE_WIFI ||
+                        activeNetwork.getType() == ConnectivityManager.TYPE_MOBILE ||
+                        activeNetwork.getType() == ConnectivityManager.TYPE_ETHERNET);
     }
-
 }

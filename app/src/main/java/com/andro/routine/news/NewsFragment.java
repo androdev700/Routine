@@ -1,13 +1,16 @@
 package com.andro.routine.news;
 
-
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.customtabs.CustomTabsIntent;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -19,7 +22,6 @@ import android.widget.Toast;
 
 import com.andro.routine.HttpHandler;
 import com.andro.routine.R;
-import com.google.android.gms.awareness.fence.LocationFence;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -27,9 +29,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
-import static android.content.Context.CONNECTIVITY_SERVICE;
 import static android.content.Context.MODE_PRIVATE;
-import static com.google.android.gms.internal.zzagz.runOnUiThread;
 
 /**
  * A simple {@link Fragment} subclass.
@@ -37,13 +37,15 @@ import static com.google.android.gms.internal.zzagz.runOnUiThread;
 public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
 
     private static final String TAG = "NewsFragment";
-    private static final String[] newsDataValues = {"title", "author", "description", "url", "imageUrl"};
+    private String URL = "https://newsapi.org/v1/articles?source=%s&sortBy=latest&apiKey=6ee4bea512c54bf386c6d4431b6df408";
+    private static final String[] newsDataValues = {"title", "author", "description", "URL", "imageUrl", "source"};
+    private boolean hasData = false;
     private RecyclerView newsRecycler;
     private RecyclerView.LayoutManager layoutManager;
     private NewsAdapter newsAdapter;
     private SwipeRefreshLayout swipeLayout;
+    private ArrayList<String> sourceList;
     private ArrayList<News> newsList;
-    private ArrayList<News> cachedNews;
     private SharedPreferences mSharedPreferences;
     private SharedPreferences.Editor mEditor;
 
@@ -57,65 +59,55 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         // Inflate the layout for this fragment
         getActivity().setTitle(R.string.title_news);
         newsList = new ArrayList<>();
-        cachedNews = new ArrayList<>();
+        sourceList = new ArrayList<>();
 
         View view = inflater.inflate(R.layout.fragment_news, container, false);
-
         mSharedPreferences = getActivity().getSharedPreferences("NewsObject", MODE_PRIVATE);
         newsRecycler = view.findViewById(R.id.news_recycler);
         swipeLayout = view.findViewById(R.id.swipe_refresh_news);
-
         swipeLayout.setOnRefreshListener(this);
-        swipeLayout.setColorSchemeColors(getResources().getColor(android.R.color.holo_green_dark)
-                , getResources().getColor(android.R.color.holo_red_dark)
-                , getResources().getColor(android.R.color.holo_blue_dark)
-                , getResources().getColor(android.R.color.holo_orange_dark));
-
+        swipeLayout.setColorSchemeColors(
+                ContextCompat.getColor(getContext(), android.R.color.holo_green_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_red_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_blue_dark),
+                ContextCompat.getColor(getContext(), android.R.color.holo_orange_dark));
         layoutManager = new LinearLayoutManager(getActivity());
         newsRecycler.setHasFixedSize(true);
         newsRecycler.setLayoutManager(layoutManager);
+        newsAdapter = new NewsAdapter(newsList, new NewsClickListener() {
+            @Override
+            public void onClick(View view, int position) {
+                CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
+                builder.setShowTitle(true);
+                builder.setToolbarColor(ActivityCompat.getColor(getContext(), R.color.colorPrimary));
+                CustomTabsIntent customTabsIntent = builder.build();
+                customTabsIntent.launchUrl(view.getContext(),
+                        Uri.parse(newsList.get(position).getUrl()));
+            }
+        });
+        newsRecycler.setAdapter(newsAdapter);
+
+        sourceList.add("the-verge");
+        sourceList.add("the-next-web");
 
         if (mSharedPreferences.getBoolean("hasData", false)) {
-            cachedNews.clear();
+            newsList.clear();
             int length = mSharedPreferences.getInt("DataLength", 0);
-
-            for (int i = 0; i < length; i++) {
+            Log.d(TAG, "hasData");
+            for (int i = 1; i <= length; i++) {
                 News news = new News();
-                news.setTitle(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[0], ""));
-                news.setAuthor(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[1], ""));
-                news.setDescription(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[2], ""));
-                news.setUrl(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[3], ""));
-                news.setImageUrl(mSharedPreferences.getString(Integer.toString(i + 1) + newsDataValues[4], ""));
-                cachedNews.add(news);
+                news.setTitle(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[0], ""));
+                news.setAuthor(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[1], ""));
+                news.setDescription(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[2], ""));
+                news.setUrl(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[3], ""));
+                news.setImageUrl(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[4], ""));
+                news.setSource(mSharedPreferences.getString(Integer.toString(i) + newsDataValues[5], ""));
+                newsList.add(news);
             }
-            newsAdapter = new NewsAdapter(cachedNews, new NewsClickListener() {
-                @Override
-                public void onClick(View view, int position) {
-                    CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-                    builder.setShowTitle(true);
-                    builder.setToolbarColor(view.getResources().getColor(R.color.colorPrimary));
-                    CustomTabsIntent customTabsIntent = builder.build();
-                    customTabsIntent.launchUrl(view.getContext(),
-                            Uri.parse(cachedNews.get(position).getUrl()));
-                }
-            });
-            newsRecycler.setAdapter(newsAdapter);
-
+            newsAdapter.notifyDataSetChanged();
         } else {
-            onRefresh();
             swipeLayout.setRefreshing(true);
-            newsAdapter = new NewsAdapter(newsList, new NewsClickListener() {
-                @Override
-                public void onClick(View view, int position) {
-                    CustomTabsIntent.Builder builder = new CustomTabsIntent.Builder();
-                    builder.setShowTitle(true);
-                    builder.setToolbarColor(view.getResources().getColor(R.color.colorPrimary));
-                    CustomTabsIntent customTabsIntent = builder.build();
-                    customTabsIntent.launchUrl(view.getContext(),
-                            Uri.parse(newsList.get(position).getUrl()));
-                }
-            });
-            newsRecycler.setAdapter(newsAdapter);
+            onRefresh();
         }
         return view;
     }
@@ -123,15 +115,33 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
     @Override
     public void onStop() {
         super.onStop();
+        int i = 1;
         swipeLayout.setRefreshing(false);
+        if (hasData) {
+            mEditor = mSharedPreferences.edit();
+            for (News news : newsList) {
+                mEditor.putBoolean("hasData", true);
+                mEditor.putString(Integer.toString(i) + newsDataValues[0], news.getTitle());
+                mEditor.putString(Integer.toString(i) + newsDataValues[1], news.getAuthor());
+                mEditor.putString(Integer.toString(i) + newsDataValues[2], news.getDescription());
+                mEditor.putString(Integer.toString(i) + newsDataValues[3], news.getUrl());
+                mEditor.putString(Integer.toString(i) + newsDataValues[4], news.getImageUrl());
+                mEditor.putString(Integer.toString(i) + newsDataValues[5], news.getSource());
+                i += 1;
+            }
+            mEditor.putInt("DataLength", newsList.size());
+            mEditor.apply();
+        }
     }
 
     @Override
     public void onRefresh() {
         if (checkConnection()) {
+            newsList.clear();
             new GetNews().execute();
         } else {
             Toast.makeText(getContext(), "Check your internet connection", Toast.LENGTH_SHORT).show();
+            swipeLayout.setRefreshing(false);
         }
     }
 
@@ -139,48 +149,31 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
 
         @Override
         protected Void doInBackground(Void... arg0) {
+
             HttpHandler handler = new HttpHandler();
-            String url = "https://newsapi.org/v1/articles?source=the-verge&sortBy=latest&apiKey=6ee4bea512c54bf386c6d4431b6df408";
-            String jsonStr = handler.makeServiceCall(url);
-            Log.e(TAG, "Response from url: " + jsonStr);
+            for (String e : sourceList) {
+                String jsonStr = handler.makeServiceCall(String.format(URL, e));
+                Log.e(TAG, "Response from URL: " + jsonStr);
 
-            if (jsonStr != null) {
-                try {
-                    JSONObject jsonObj = new JSONObject(jsonStr);
-                    JSONArray newsArray = jsonObj.getJSONArray("articles");
-                    mEditor = mSharedPreferences.edit();
-                    mEditor.putBoolean("hasData", true);
-                    newsList.clear();
-
-                    for (int i = 0; i < newsArray.length(); i++) {
-                        JSONObject article = newsArray.getJSONObject(i);
-                        News news = new News();
-                        news.setAuthor(article.getString("author"));
-                        news.setTitle(article.getString("title"));
-                        news.setDescription(article.getString("description"));
-                        news.setUrl(article.getString("url"));
-                        news.setImageUrl(article.getString("urlToImage"));
-                        mEditor.putString(Integer.toString(i + 1) + newsDataValues[0], news.getTitle());
-                        mEditor.putString(Integer.toString(i + 1) + newsDataValues[1], news.getAuthor());
-                        mEditor.putString(Integer.toString(i + 1) + newsDataValues[2], news.getDescription());
-                        mEditor.putString(Integer.toString(i + 1) + newsDataValues[3], news.getUrl());
-                        mEditor.putString(Integer.toString(i + 1) + newsDataValues[4], news.getImageUrl());
-                        newsList.add(news);
-                    }
-                    mEditor.putInt("DataLength", newsList.size());
-                    mEditor.apply();
-
-                } catch (final JSONException e) {
-                    Log.e(TAG, "Json parsing error: " + e.getMessage());
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getActivity(),
-                                    "Json parsing error: " + e.getMessage(),
-                                    Toast.LENGTH_LONG)
-                                    .show();
+                if (jsonStr != null) {
+                    try {
+                        JSONObject jsonObj = new JSONObject(jsonStr);
+                        JSONArray newsArray = jsonObj.getJSONArray("articles");
+                        for (int i = 0; i < newsArray.length(); i++) {
+                            JSONObject article = newsArray.getJSONObject(i);
+                            News news = new News();
+                            news.setAuthor(article.getString("author"));
+                            news.setTitle(article.getString("title"));
+                            news.setDescription(article.getString("description"));
+                            news.setUrl(article.getString("url"));
+                            news.setImageUrl(article.getString("urlToImage"));
+                            news.setSource(jsonObj.getString("source"));
+                            newsList.add(news);
                         }
-                    });
+
+                    } catch (final JSONException err) {
+                        Log.e(TAG, "Json parsing error: " + err.getMessage());
+                    }
                 }
             }
             return null;
@@ -189,22 +182,18 @@ public class NewsFragment extends Fragment implements SwipeRefreshLayout.OnRefre
         @Override
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
+            hasData = true;
             swipeLayout.setRefreshing(false);
             newsAdapter.notifyDataSetChanged();
         }
     }
 
     public boolean checkConnection() {
-        ConnectivityManager connect = (ConnectivityManager) getActivity().getSystemService(CONNECTIVITY_SERVICE);
-        if (connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.CONNECTED ||
-                connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.CONNECTING ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.CONNECTING ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.CONNECTED) {
-            return true;
-        } else if (connect.getNetworkInfo(0).getState() == android.net.NetworkInfo.State.DISCONNECTED ||
-                connect.getNetworkInfo(1).getState() == android.net.NetworkInfo.State.DISCONNECTED) {
-            return false;
-        }
-        return false;
+        ConnectivityManager cm = (ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && (
+                activeNetwork.getType() == ConnectivityManager.TYPE_WIFI ||
+                activeNetwork.getType() == ConnectivityManager.TYPE_MOBILE ||
+                activeNetwork.getType() == ConnectivityManager.TYPE_ETHERNET);
     }
 }

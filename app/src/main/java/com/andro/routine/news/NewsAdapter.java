@@ -23,7 +23,7 @@ import java.util.ArrayList;
 public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.MyViewHolder> {
 
     private static final String TAG = "NewsAdapter";
-    private TextView title, description, author;
+    private TextView title, description, author, source;
     private ImageView photoBackground;
     private String imageUrl;
     private ArrayList<News> newsList;
@@ -43,6 +43,7 @@ public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.MyViewHolder> 
             title = itemView.findViewById(R.id.title);
             description = itemView.findViewById(R.id.description);
             author = itemView.findViewById(R.id.author);
+            source = itemView.findViewById(R.id.source);
             photoBackground = itemView.findViewById(R.id.background_card_image);
             photoBackground.setColorFilter(Color.LTGRAY, PorterDuff.Mode.SCREEN);
         }
@@ -51,6 +52,7 @@ public class NewsAdapter extends RecyclerView.Adapter<NewsAdapter.MyViewHolder> 
             title.setText(newsList.get(pos).getTitle());
             description.setText(newsList.get(pos).getDescription());
             author.setText(newsList.get(pos).getAuthor());
+            source.setText(newsList.get(pos).getSource());
             imageUrl = newsList.get(pos).getImageUrl();
             Glide.with(photoBackground.getContext()).load(imageUrl).into(photoBackground);
             cardView.setOnClickListener(new View.OnClickListener() {

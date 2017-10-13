@@ -3,7 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient"
     tools:context="com.andro.routine.weather.WeatherFragment">
 
     <android.support.v4.widget.SwipeRefreshLayout
@@ -130,8 +129,8 @@
                 android:id="@+id/dark_sky_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
                 android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
                 android:padding="10dp"
                 android:text="Powered by Dark Sky" />
 

@@ -1,6 +1,5 @@
 package com.andro.routine.tasks;
 
-
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
@@ -24,7 +23,6 @@ import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.EditText;
 
 import com.andro.routine.R;
@@ -56,10 +54,10 @@ public class TasksFragment extends Fragment {
 
     @Override
     public void onStart() {
-        int size = tasksStorage.getInt("size",0);
+        int size = tasksStorage.getInt("size", 0);
         int count = 1;
         for (int i = 0; i < size; i++) {
-            tasks.add(tasksStorage.getString(Integer.toString(count++),""));
+            tasks.add(tasksStorage.getString(Integer.toString(count++), ""));
         }
         super.onStart();
     }
@@ -67,12 +65,12 @@ public class TasksFragment extends Fragment {
     @Override
     public void onPause() {
         tasksEditor = tasksStorage.edit();
-        tasksEditor.putInt("size",tasks.size());
-        tasksEditor.putBoolean("hasData",true);
+        tasksEditor.putInt("size", tasks.size());
+        tasksEditor.putBoolean("hasData", true);
         int size = tasks.size();
         int count = 1;
         for (int i = 0; i < size; i++) {
-            tasksEditor.putString(Integer.toString(count++),tasks.get(i));
+            tasksEditor.putString(Integer.toString(count++), tasks.get(i));
         }
         tasksEditor.apply();
         super.onPause();
@@ -84,13 +82,14 @@ public class TasksFragment extends Fragment {
         // Inflate the layout for this fragment
         getActivity().setTitle(R.string.title_tasks);
         View view = inflater.inflate(R.layout.fragment_tasks, container, false);
+
         tasksFab = view.findViewById(R.id.tasks_fab);
         recyclerView = view.findViewById(R.id.tasks_recycler);
 
         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(getActivity().getApplicationContext());
         recyclerView.setLayoutManager(layoutManager);
 
-        tasksStorage = getActivity().getSharedPreferences("TasksStorage",Context.MODE_PRIVATE);
+        tasksStorage = getActivity().getSharedPreferences("TasksStorage", Context.MODE_PRIVATE);
 
         adapter = new TasksAdapter(tasks);
         recyclerView.setAdapter(adapter);
@@ -106,6 +105,7 @@ public class TasksFragment extends Fragment {
                 alertDialog.show();
             }
         });
+
         return view;
     }
 

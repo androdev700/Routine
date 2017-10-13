@@ -5,7 +5,7 @@ package com.andro.routine.news;
  */
 
 public class News {
-    private String title, description, author, url, imageUrl;
+    private String title, description, author, url, imageUrl, source;
 
     public void setAuthor(String author) {
         this.author = author;
@@ -27,6 +27,10 @@ public class News {
         this.url = url;
     }
 
+    public void setSource(String source) {
+        this.source = source;
+    }
+
     public String getAuthor() {
         return author;
     }
@@ -45,5 +49,9 @@ public class News {
 
     public String getUrl() {
         return url;
+    }
+
+    public String getSource() {
+        return source;
     }
 }
