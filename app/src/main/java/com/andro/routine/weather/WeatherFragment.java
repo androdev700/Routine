@@ -112,7 +112,7 @@ public class WeatherFragment extends Fragment implements SwipeRefreshLayout.OnRe
         precipProbability = view.findViewById(R.id.precip_probabillity);
         summaryDaily = view.findViewById(R.id.summary_daily);
 
-        
+
         weatherIcon = view.findViewById(R.id.weather_icon);
 
         if (weatherCache.getBoolean("hasData", false)) {
